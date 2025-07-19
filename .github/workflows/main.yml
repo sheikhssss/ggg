@@ -7,12 +7,24 @@ jobs:
   build:
     name: Start Building…
     runs-on: windows-latest
+    timeout-minutes: 30  # Prevent long-running jobs from hanging
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore Previous State (if exists)
+        uses: actions/download-artifact@v4
+        with:
+          name: litemanager-state
+          path: litemanager-state
+        continue-on-error: true
+
       - name: Downloading & installing Essentials
         run: |
           Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
           cmd /c Downloads.bat
+        shell: cmd
 
       - name: Connect to LiteManager
         run: |
@@ -22,22 +34,35 @@ jobs:
             Write-Host "Error running show.bat"
             exit 1
           }
+        shell: pwsh
 
-      - name: Create Restore Point
+      - name: Save State as Artifact
         run: |
-          $os = Get-CimInstance -ClassName Win32_OperatingSystem
-          if ($os.Caption -like "*Windows 10*" -or $os.Caption -like "*Windows 11*") {
-            powershell -Command "Checkpoint-Computer -Description 'Before LiteManager Setup' -RestorePointType 'MODIFY_SETTINGS'"
-          } else {
-            Write-Host "Restore points are not supported on this operating system."
-          }
+          # Create a directory for state
+          New-Item -ItemType Directory -Path litemanager-state -Force
+          # Copy relevant files (e.g., Chocolatey logs, LiteManager config, show.bat)
+          Copy-Item -Path "C:\ProgramData\chocolatey\logs\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "show.bat" -Destination litemanager-state -Force -ErrorAction SilentlyContinue
+          # Add other critical files as needed (e.g., LiteManager config files)
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Upload State Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: litemanager-state
+          path: litemanager-state/
+          retention-days: 1
 
       - name: Time Counter
         run: |
           cmd /c loop.bat
+        shell: cmd
+        timeout-minutes: 25  # Prevent loop.bat from running indefinitely
 
       - name: Handle Cancellation
-        if: ${{ github.event.action == 'workflow_run' }}
+        if: ${{ cancelled() }}
         run: |
           Write-Host "Workflow was canceled. Shutting down the system."
           shutdown /s /t 0
+        shell: cmd
