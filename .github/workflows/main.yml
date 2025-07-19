@@ -20,15 +20,31 @@ jobs:
           path: litemanager-state
         continue-on-error: true
 
+      - name: Check if LiteManager is Configured
+        id: check-litemanager
+        run: |
+          if (Test-Path -Path "litemanager-state\LiteManager-ID.txt") {
+            Write-Host "LiteManager configuration found. Skipping setup."
+            echo "SKIP_SETUP=true" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "No LiteManager configuration found. Proceeding with setup."
+            echo "SKIP_SETUP=false" >> $env:GITHUB_ENV
+          }
+        shell: pwsh
+
       - name: Downloading & installing Essentials
+        if: env.SKIP_SETUP == 'false'
         run: |
           Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
           cmd /c Downloads.bat
         shell: cmd
 
-      - name: Create Artifacts Directory
+      - name: Restore LiteManager Configuration
+        if: env.SKIP_SETUP == 'true'
         run: |
-          New-Item -ItemType Directory -Path litemanager-state -Force
+          # Restore LiteManager config files from artifact
+          Copy-Item -Path "litemanager-state\*" -Destination "C:\Program Files\LiteManager" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "Restored LiteManager configuration."
         shell: pwsh
         continue-on-error: true
 
@@ -39,14 +55,19 @@ jobs:
             Write-Host "Error running show.bat"
             exit 1
           }
+          # Save LiteManager ID to a file
+          $lm_id = (cmd /c show.bat | Select-String "LiteManager ID:").Line.Split(":")[1].Trim()
+          echo $lm_id > litemanager-state\LiteManager-ID.txt
         shell: pwsh
 
       - name: Save State as Artifact
         run: |
+          # Create a directory for state
+          New-Item -ItemType Directory -Path litemanager-state -Force
           # Copy relevant files (e.g., Chocolatey logs, LiteManager config, show.bat)
           Copy-Item -Path "C:\ProgramData\chocolatey\logs\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path "show.bat" -Destination litemanager-state -Force -ErrorAction SilentlyContinue
-          # Add LiteManager config files if applicable (adjust path as needed)
+          # Copy LiteManager config files (adjust path as needed)
           Copy-Item -Path "C:\Program Files\LiteManager\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
         shell: pwsh
         continue-on-error: true
@@ -70,4 +91,3 @@ jobs:
           Write-Host "Workflow was canceled. Shutting down the system."
           shutdown /s /t 0
         shell: cmd
-28
