@@ -9,10 +9,6 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Create Restore Point
-        run: |
-          powershell -Command "Checkpoint-Computer -Description 'Before Litemanager Workflow' -RestorePointType 'MODIFY_SETTINGS'"
-
       - name: Downloading & installing Essentials
         run: |
           Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
@@ -21,15 +17,22 @@ jobs:
       - name: Connect to LiteManager
         run: |
           cmd /c show.bat
-          echo "LiteManager ID: 452507277"  # Replace with actual output if needed
+          # Check if LiteManager ID is displayed
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error running show.bat"
+            exit 1
+          }
+
+      - name: Create Restore Point
+        run: |
+          powershell -Command "Checkpoint-Computer -Description 'Before LiteManager Setup' -RestorePointType 'MODIFY_SETTINGS'"
 
       - name: Time Counter
         run: |
           cmd /c loop.bat
-        continue-on-error: true  # Allow the job to continue even if this step fails
 
       - name: Handle Cancellation
         if: ${{ github.event.action == 'workflow_run' }}
         run: |
-          echo "Workflow was canceled. Shutting down the system."
+          Write-Host "Workflow was canceled. Shutting down the system."
           shutdown /s /t 0
