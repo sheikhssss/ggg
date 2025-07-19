@@ -25,7 +25,12 @@ jobs:
 
       - name: Create Restore Point
         run: |
-          powershell -Command "Checkpoint-Computer -Description 'Before LiteManager Setup' -RestorePointType 'MODIFY_SETTINGS'"
+          $os = Get-CimInstance -ClassName Win32_OperatingSystem
+          if ($os.Caption -like "*Windows 10*" -or $os.Caption -like "*Windows 11*") {
+            powershell -Command "Checkpoint-Computer -Description 'Before LiteManager Setup' -RestorePointType 'MODIFY_SETTINGS'"
+          } else {
+            Write-Host "Restore points are not supported on this operating system."
+          }
 
       - name: Time Counter
         run: |
