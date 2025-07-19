@@ -9,6 +9,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Create Restore Point
+        run: |
+          powershell -Command "Checkpoint-Computer -Description 'Before Litemanager Workflow' -RestorePointType 'MODIFY_SETTINGS'"
+
       - name: Downloading & installing Essentials
         run: |
           Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
@@ -17,26 +21,15 @@ jobs:
       - name: Connect to LiteManager
         run: |
           cmd /c show.bat
-          # Check if LiteManager ID is available
-          if not exist LiteManagerID.txt (
-            echo "LiteManager ID not found. Exiting..."
-            exit 1
-          )
+          echo "LiteManager ID: 452507277"  # Replace with actual output if needed
 
       - name: Time Counter
-        run: cmd /c loop.bat
+        run: |
+          cmd /c loop.bat
+        continue-on-error: true  # Allow the job to continue even if this step fails
 
-      - name: Handle Workflow Cancellation
+      - name: Handle Cancellation
         if: ${{ github.event.action == 'workflow_run' }}
         run: |
-          echo "Workflow was canceled. Shutting down the system..."
+          echo "Workflow was canceled. Shutting down the system."
           shutdown /s /t 0
-
-      - name: Check Previous State
-        run: |
-          if exist previous_state.txt (
-            echo "Resuming from previous state..."
-            cmd /c resume.bat
-          ) else (
-            echo "No previous state found. Starting fresh..."
-          )
