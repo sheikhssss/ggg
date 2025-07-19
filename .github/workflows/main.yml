@@ -37,7 +37,7 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
           cmd /c Downloads.bat
-        shell: cmd
+        shell: pwsh  # Use PowerShell for Invoke-WebRequest
 
       - name: Restore LiteManager Configuration
         if: env.SKIP_SETUP == 'true'
@@ -45,6 +45,12 @@ jobs:
           # Restore LiteManager config files from artifact
           Copy-Item -Path "litemanager-state\*" -Destination "C:\Program Files\LiteManager" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "Restored LiteManager configuration."
+        shell: pwsh
+        continue-on-error: true
+
+      - name: Create Artifacts Directory
+        run: |
+          New-Item -ItemType Directory -Path litemanager-state -Force
         shell: pwsh
         continue-on-error: true
 
@@ -62,8 +68,6 @@ jobs:
 
       - name: Save State as Artifact
         run: |
-          # Create a directory for state
-          New-Item -ItemType Directory -Path litemanager-state -Force
           # Copy relevant files (e.g., Chocolatey logs, LiteManager config, show.bat)
           Copy-Item -Path "C:\ProgramData\chocolatey\logs\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path "show.bat" -Destination litemanager-state -Force -ErrorAction SilentlyContinue
@@ -77,7 +81,7 @@ jobs:
         with:
           name: litemanager-state
           path: litemanager-state/
-          retention-days: 1
+          retention-days: 7  # Extended to allow reruns within a week
 
       - name: Time Counter
         run: |
