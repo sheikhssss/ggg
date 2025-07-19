@@ -32,6 +32,13 @@ jobs:
           }
         shell: pwsh
 
+      - name: Debug Working Directory
+        if: env.SKIP_SETUP == 'false'
+        run: |
+          dir
+          echo Current directory: %CD%
+        shell: cmd
+
       - name: Downloading & installing Essentials
         if: env.SKIP_SETUP == 'false'
         run: |
@@ -81,7 +88,7 @@ jobs:
         with:
           name: litemanager-state
           path: litemanager-state/
-          retention-days: 7  # Extended to allow reruns within a week
+          retention-days: 7  # Allow reruns within a week
 
       - name: Time Counter
         run: |
