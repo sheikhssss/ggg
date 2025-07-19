@@ -7,7 +7,7 @@ jobs:
   build:
     name: Start Building…
     runs-on: windows-latest
-    timeout-minutes: 30  # Prevent long-running jobs from hanging
+    timeout-minutes: 30  # Prevent job from running indefinitely
 
     steps:
       - name: Checkout Repository
@@ -26,10 +26,15 @@ jobs:
           cmd /c Downloads.bat
         shell: cmd
 
+      - name: Create Artifacts Directory
+        run: |
+          New-Item -ItemType Directory -Path litemanager-state -Force
+        shell: pwsh
+        continue-on-error: true
+
       - name: Connect to LiteManager
         run: |
           cmd /c show.bat
-          # Check if LiteManager ID is displayed
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Error running show.bat"
             exit 1
@@ -38,12 +43,11 @@ jobs:
 
       - name: Save State as Artifact
         run: |
-          # Create a directory for state
-          New-Item -ItemType Directory -Path litemanager-state -Force
           # Copy relevant files (e.g., Chocolatey logs, LiteManager config, show.bat)
           Copy-Item -Path "C:\ProgramData\chocolatey\logs\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path "show.bat" -Destination litemanager-state -Force -ErrorAction SilentlyContinue
-          # Add other critical files as needed (e.g., LiteManager config files)
+          # Add LiteManager config files if applicable (adjust path as needed)
+          Copy-Item -Path "C:\Program Files\LiteManager\*" -Destination litemanager-state -Recurse -Force -ErrorAction SilentlyContinue
         shell: pwsh
         continue-on-error: true
 
@@ -66,3 +70,4 @@ jobs:
           Write-Host "Workflow was canceled. Shutting down the system."
           shutdown /s /t 0
         shell: cmd
+28
